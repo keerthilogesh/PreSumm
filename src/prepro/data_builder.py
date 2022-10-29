@@ -343,7 +343,8 @@ def _format_to_bert(params):
         datasets.append(b_data_dict)
     logger.info('Processed instances %d' % len(datasets))
     logger.info('Saving to %s' % save_file)
-    torch.save(datasets, os.path.abspath(save_file))
+    os.makedirs(os.path.dirname(os.path.abspath(save_file)), exist_ok=True)
+    torch.save(datasets, save_file)
     datasets = []
     gc.collect()
 
@@ -378,7 +379,7 @@ def format_to_lines(args):
         for d in pool.imap_unordered(_format_to_lines, a_lst): #format_to_lines : using Load_Json function it splts the story file into source and target
             dataset.append(d)  #append it to the dataset array
             if (len(dataset) > args.shard_size):
-                pt_file = "{:s}.{:s}.{:d}.json".format(args.save_path, corpus_type, p_ct)
+                pt_file = "{:s}/{:s}.{:d}.json".format(args.save_path, corpus_type, p_ct)
                 # print(pt_file)
                 with open(pt_file, 'w') as save:
                     # save.write('\n'.join(dataset))

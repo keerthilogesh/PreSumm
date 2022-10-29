@@ -5,7 +5,7 @@ from Dataset_Preparation.preprocess import preprocess_sent, preprocess_word
 from dateparser.search import search_dates
 import re
 
-ip_data = pd.read_excel(r"C:\Users\keert\PycharmProjects\PreSumm\Dataset_Preparation\cleaned_data\cleaned_data.xlsx")  # reading the excel file (cleaned data)
+ip_data = pd.read_excel(r"C:\Users\keert\PycharmProjects\PreSumm\Dataset_Preparation\cleaned_data\cleaned_data.xlsx", engine="openpyxl")  # reading the excel file (cleaned data)
 ip_data["location_date"] = ip_data["title"].apply(lambda x: re.findall(r"\((.*?)\)", str(x))[-1] if len(re.findall(r"\((.*?)\)", str(x))) > 0 else "")
 ip_data["location_date"] = ip_data["location_date"].apply(lambda x: x if len(str(x)) > 3 else "")
 ip_data["date"] = ip_data["location_date"].apply(lambda x: x.split(",")[1] if "," in x else x)
