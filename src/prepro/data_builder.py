@@ -11,7 +11,7 @@ from collections import Counter
 from os.path import join as pjoin
 
 import torch
-from multiprocess import Pool
+from multiprocessing import Pool
 
 from others.logging import logger
 from others.tokenization import BertTokenizer
@@ -30,12 +30,13 @@ def recover_from_corenlp(s):
     s = re.sub(r'\'\' {\w}', '\'\'\g<1>', s)
 
 
-
+# Check the story file one by one , search tokenwise and split it as source adn target. It basically creates a mapping for the story and their highlights.
+#Search each token and if
 def load_json(p, lower):
     source = []
     tgt = []
     flag = False
-    for sent in json.load(open(p))['sentences']:
+    for sent in json.load(open(p, 'rb'), encoding="utf8")['sentences']:
         tokens = [t['word'] for t in sent['tokens']]
         if (lower):
             tokens = [t.lower() for t in tokens]
@@ -106,7 +107,7 @@ def load_xml(p):
     else:
         return None, None
 
-
+#Tokenization process
 def tokenize(args):
     stories_dir = os.path.abspath(args.raw_path)
     tokenized_stories_dir = os.path.abspath(args.save_path)
@@ -137,6 +138,7 @@ def tokenize(args):
                 tokenized_stories_dir, num_tokenized, stories_dir, num_orig))
     print("Successfully finished tokenizing %s to %s.\n" % (stories_dir, tokenized_stories_dir))
 
+#This function calculates precision, recall and F1 score between the evaluated ngrams and refernce ngrams (sentences added  greedily and the highlights)
 def cal_rouge(evaluated_ngrams, reference_ngrams):
     reference_count = len(reference_ngrams)
     evaluated_count = len(evaluated_ngrams)
@@ -157,15 +159,21 @@ def cal_rouge(evaluated_ngrams, reference_ngrams):
     f1_score = 2.0 * ((precision * recall) / (precision + recall + 1e-8))
     return {"f": f1_score, "p": precision, "r": recall}
 
+#argument (source,target,summary size) summary size is 3 here , source - max. number of sentences in the document , target - highlights
+# First step is to clean the source and the target
+# calculate uni-gram and bi-gram for both source and target
 
 def greedy_selection(doc_sent_list, abstract_sent_list, summary_size):
     def _rouge_clean(s):
-        return re.sub(r'[^a-zA-Z0-9 ]', '', s)
+        return re.sub(r'[^a-zA-Z0-9 ]', '', s) # rouge_clean method - remove characters except (a-zA-Z0-9) in s
 
     max_rouge = 0.0
     abstract = sum(abstract_sent_list, [])
+    #print('abstract',abstract)
     abstract = _rouge_clean(' '.join(abstract)).split()
+    #print('abstract_clean',abstract)
     sents = [_rouge_clean(' '.join(s)).split() for s in doc_sent_list]
+
     evaluated_1grams = [_get_word_ngrams(1, [sent]) for sent in sents]
     reference_1grams = _get_word_ngrams(1, [abstract])
     evaluated_2grams = [_get_word_ngrams(2, [sent]) for sent in sents]
@@ -183,11 +191,12 @@ def greedy_selection(doc_sent_list, abstract_sent_list, summary_size):
             candidates_1 = set.union(*map(set, candidates_1))
             candidates_2 = [evaluated_2grams[idx] for idx in c]
             candidates_2 = set.union(*map(set, candidates_2))
-            rouge_1 = cal_rouge(candidates_1, reference_1grams)['f']
-            rouge_2 = cal_rouge(candidates_2, reference_2grams)['f']
+            rouge_1 = cal_rouge(candidates_1, reference_1grams)['f']  # ROUGE-1 (UNIGRAM) cal_rouge -returns the F1,Precision and recall betweem the candidate and the highlights(reference)
+            rouge_2 = cal_rouge(candidates_2, reference_2grams)['f']  # ROUGE-2 (BIGRAM) cal_rouge - returns the F1 , precision and recall between the candidate and the highlights(reference)
             rouge_score = rouge_1 + rouge_2
             if rouge_score > cur_max_rouge:
-                cur_max_rouge = rouge_score
+
+                cur_max_rouge = rouge_score  # update the rouge score value
                 cur_id = i
         if (cur_id == -1):
             return selected
@@ -200,8 +209,8 @@ def greedy_selection(doc_sent_list, abstract_sent_list, summary_size):
 def hashhex(s):
     """Returns a heximal formated SHA1 hash of the input string."""
     h = hashlib.sha1()
-    h.update(s.encode('utf-8'))
-    return h.hexdigest()
+    h.update(s.encode('utf-8')) #encode() : Converts the string into bytes to be acceptable by hash function.
+    return h.hexdigest()  #hexdigest() : Returns the encoded data in hexadecimal format.
 
 
 class BertData():
@@ -219,13 +228,15 @@ class BertData():
         self.cls_vid = self.tokenizer.vocab[self.cls_token]
         self.pad_vid = self.tokenizer.vocab[self.pad_token]
 
+#bert.preprocess(source, tgt, sent_labels, use_bert_basic_tokenizer=args.use_bert_basic_tokenizer,is_test=is_test)
+    # preprocess - we have , source , target(hightlight) and the sentence labels as the input to the function
     def preprocess(self, src, tgt, sent_labels, use_bert_basic_tokenizer=False, is_test=False):
 
         if ((not is_test) and len(src) == 0):
             return None
-
+    # Join elements of s in 'src' with space
         original_src_txt = [' '.join(s) for s in src]
-
+# Assigning id number to each sentences
         idxs = [i for i, s in enumerate(src) if (len(s) > self.args.min_src_ntokens_per_sent)]
 
         _sent_labels = [0] * len(src)
@@ -239,31 +250,35 @@ class BertData():
 
         if ((not is_test) and len(src) < self.args.min_src_nsents):
             return None
-
+# Adding [CLS] [SEP] toekn for each sentences and save it in 'Text'
         src_txt = [' '.join(sent) for sent in src]
         text = ' {} {} '.format(self.sep_token, self.cls_token).join(src_txt)
-
+# Creating subtoken on 'Text' with [CLS] and [SEP]
         src_subtokens = self.tokenizer.tokenize(text)
 
         src_subtokens = [self.cls_token] + src_subtokens + [self.sep_token]
+ #matching words to vocabulary and create idx for source text
         src_subtoken_idxs = self.tokenizer.convert_tokens_to_ids(src_subtokens)
+        #calculate the postion of the [SEP] token in '_segs'
         _segs = [-1] + [i for i, t in enumerate(src_subtoken_idxs) if t == self.sep_vid]
         segs = [_segs[i] - _segs[i - 1] for i in range(1, len(_segs))]
+#Interval segment embeddings - assigning 0 and 1 to the sentencs
         segments_ids = []
         for i, s in enumerate(segs):
             if (i % 2 == 0):
                 segments_ids += s * [0]
             else:
                 segments_ids += s * [1]
+ # calculate the postion of the [CLS] token in 'cls_ids'
         cls_ids = [i for i, t in enumerate(src_subtoken_idxs) if t == self.cls_vid]
         sent_labels = sent_labels[:len(cls_ids)]
-
+#creating subtokens for tgt(highlights)
         tgt_subtokens_str = '[unused0] ' + ' [unused2] '.join(
             [' '.join(self.tokenizer.tokenize(' '.join(tt), use_bert_basic_tokenizer=use_bert_basic_tokenizer)) for tt in tgt]) + ' [unused1]'
         tgt_subtoken = tgt_subtokens_str.split()[:self.args.max_tgt_ntokens]
         if ((not is_test) and len(tgt_subtoken) < self.args.min_tgt_ntokens):
             return None
-
+# match vocabulary and create idx for target text
         tgt_subtoken_idxs = self.tokenizer.convert_tokens_to_ids(tgt_subtoken)
 
         tgt_txt = '<q>'.join([' '.join(tt) for tt in tgt])
@@ -280,7 +295,9 @@ def format_to_bert(args):
     for corpus_type in datasets:
         a_lst = []
         for json_f in glob.glob(pjoin(args.raw_path, '*' + corpus_type + '.*.json')):
+            print(args.raw_path, '*' + corpus_type + '.*.json')
             real_name = json_f.split('/')[-1]
+            print(real_name)
             a_lst.append((corpus_type, json_f, args, pjoin(args.save_path, real_name.replace('json', 'bert.pt'))))
         print(a_lst)
         pool = Pool(args.n_cpus)
@@ -293,20 +310,22 @@ def format_to_bert(args):
 
 def _format_to_bert(params):
     corpus_type, json_file, args, save_file = params
+    print(corpus_type,json_file, args, save_file)
     is_test = corpus_type == 'test'
     if (os.path.exists(save_file)):
         logger.info('Ignore %s' % save_file)
+        print('Ignore %s' % save_file)
         return
 
     bert = BertData(args)
 
     logger.info('Processing %s' % json_file)
-    jobs = json.load(open(json_file))
+    jobs = json.load(open(json_file, encoding="utf8"))
     datasets = []
     for d in jobs:
         source, tgt = d['src'], d['tgt']
-
-        sent_labels = greedy_selection(source[:args.max_src_nsents], tgt, 3)
+        #print('tgt',tgt)
+        sent_labels = greedy_selection(source[:args.max_src_nsents], tgt, 3) # ground truth label generation using greedu selection
         if (args.lower):
             source = [' '.join(s).lower().split() for s in source]
             tgt = [' '.join(s).lower().split() for s in tgt]
@@ -317,13 +336,14 @@ def _format_to_bert(params):
         if (b_data is None):
             continue
         src_subtoken_idxs, sent_labels, tgt_subtoken_idxs, segments_ids, cls_ids, src_txt, tgt_txt = b_data
+
         b_data_dict = {"src": src_subtoken_idxs, "tgt": tgt_subtoken_idxs,
                        "src_sent_labels": sent_labels, "segs": segments_ids, 'clss': cls_ids,
                        'src_txt': src_txt, "tgt_txt": tgt_txt}
         datasets.append(b_data_dict)
     logger.info('Processed instances %d' % len(datasets))
     logger.info('Saving to %s' % save_file)
-    torch.save(datasets, save_file)
+    torch.save(datasets, os.path.abspath(save_file))
     datasets = []
     gc.collect()
 
@@ -332,12 +352,14 @@ def format_to_lines(args):
     corpus_mapping = {}
     for corpus_type in ['valid', 'test', 'train']:
         temp = []
+
         for line in open(pjoin(args.map_path, 'mapping_' + corpus_type + '.txt')):
-            temp.append(hashhex(line.strip()))
+            temp.append(hashhex(line.strip()))  # strip - it removes any leading and/or trailing whitespace from a string. #Hashhex - Returns a heximal formated SHA1 hash of the input string
+
         corpus_mapping[corpus_type] = {key.strip(): 1 for key in temp}
     train_files, valid_files, test_files = [], [], []
     for f in glob.glob(pjoin(args.raw_path, '*.json')):
-        real_name = f.split('/')[-1].split('.')[0]
+        real_name = os.path.basename(f).split(".")[0]
         if (real_name in corpus_mapping['valid']):
             valid_files.append(f)
         elif (real_name in corpus_mapping['test']):
@@ -350,26 +372,28 @@ def format_to_lines(args):
     corpora = {'train': train_files, 'valid': valid_files, 'test': test_files}
     for corpus_type in ['train', 'valid', 'test']:
         a_lst = [(f, args) for f in corpora[corpus_type]]
-        pool = Pool(args.n_cpus)
+        pool = Pool(args.n_cpus)   # number of cpus
         dataset = []
         p_ct = 0
-        for d in pool.imap_unordered(_format_to_lines, a_lst):
-            dataset.append(d)
+        for d in pool.imap_unordered(_format_to_lines, a_lst): #format_to_lines : using Load_Json function it splts the story file into source and target
+            dataset.append(d)  #append it to the dataset array
             if (len(dataset) > args.shard_size):
                 pt_file = "{:s}.{:s}.{:d}.json".format(args.save_path, corpus_type, p_ct)
+                # print(pt_file)
                 with open(pt_file, 'w') as save:
                     # save.write('\n'.join(dataset))
-                    save.write(json.dumps(dataset))
+                    save.write(json.dumps(dataset))    # json.dumps- to convert the python object to json object / to send the data from python to json
                     p_ct += 1
                     dataset = []
 
         pool.close()
         pool.join()
         if (len(dataset) > 0):
-            pt_file = "{:s}.{:s}.{:d}.json".format(args.save_path, corpus_type, p_ct)
+            pt_file = "{:s}/{:s}.{:d}.json".format(args.save_path, corpus_type, p_ct)
+            print(pt_file)
             with open(pt_file, 'w') as save:
                 # save.write('\n'.join(dataset))
-                save.write(json.dumps(dataset))
+                save.write(json.dumps(dataset))  # json.dumps- to convert the python object to json object / to send the data from python to json
                 p_ct += 1
                 dataset = []
 
@@ -377,7 +401,7 @@ def format_to_lines(args):
 def _format_to_lines(params):
     f, args = params
     print(f)
-    source, tgt = load_json(f, args.lower)
+    source, tgt = load_json(f, args.lower)  #load_json - function separates the content and the highlights of the story.
     return {'src': source, 'tgt': tgt}
 
 
@@ -389,7 +413,7 @@ def format_xsum_to_lines(args):
     else:
         datasets = ['train', 'test', 'valid']
 
-    corpus_mapping = json.load(open(pjoin(args.raw_path, 'XSum-TRAINING-DEV-TEST-SPLIT-90-5-5.json')))
+    corpus_mapping = json.load(open(pjoin(args.raw_path, 'XSum-TRAINING-DEV-TEST-SPLIT-90-5-5.json')), encoding="utf8")
 
     for corpus_type in datasets:
         mapped_fnames = corpus_mapping[corpus_type]

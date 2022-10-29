@@ -4,6 +4,7 @@ import glob
 import random
 
 import torch
+from tqdm import tqdm
 
 from others.logging import logger
 
@@ -30,13 +31,13 @@ class Batch(object):
             tgt = torch.tensor(self._pad(pre_tgt, 0))
 
             segs = torch.tensor(self._pad(pre_segs, 0))
-            mask_src = 1 - (src == 0)
-            mask_tgt = 1 - (tgt == 0)
+            mask_src = ~ (src == 0)
+            mask_tgt = ~ (tgt == 0)
 
 
             clss = torch.tensor(self._pad(pre_clss, -1))
             src_sent_labels = torch.tensor(self._pad(pre_src_sent_labels, 0))
-            mask_cls = 1 - (clss == -1)
+            mask_cls = ~ (clss == -1)
             clss[clss == -1] = 0
             setattr(self, 'clss', clss.to(device))
             setattr(self, 'mask_cls', mask_cls.to(device))
@@ -81,7 +82,7 @@ def load_dataset(args, corpus_type, shuffle):
         return dataset
 
     # Sort the glob output by file name (by increasing indexes).
-    pts = sorted(glob.glob(args.bert_data_path + '.' + corpus_type + '.[0-9]*.pt'))
+    pts = sorted(glob.glob(args.bert_data_path + corpus_type + '.[0-9]*.pt'))
     if pts:
         if (shuffle):
             random.shuffle(pts)
@@ -377,3 +378,77 @@ class TextDataloader(object):
 
                 yield batch
             return
+
+
+def load_text(args, source_fp, target_fp, device):
+    from others.tokenization import BertTokenizer
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
+    sep_vid = tokenizer.vocab['[SEP]'] # token id for [SEP] in vocabulary is 102
+    cls_vid = tokenizer.vocab['[CLS]'] #token id for [CLS] in vocabulary is 101
+    n_lines = len(open(source_fp).read().split('\n'))
+
+    def _process_src(raw): # source text
+        raw = raw.strip().lower() # converting it into lower case
+        raw = raw.replace('[cls]','[CLS]').replace('[sep]','[SEP]') # replace [CLS] and [SEP] token
+        src_subtokens = tokenizer.tokenize(raw) # creating source sub_tokens
+        src_subtokens = ['[CLS]'] + src_subtokens + ['[SEP]'] # appending [CLS] and [SEP] at the front and end respectively
+        src_subtoken_idxs = tokenizer.convert_tokens_to_ids(src_subtokens) # creating sub_token ids from the vocabulary
+        src_subtoken_idxs = src_subtoken_idxs[:-1][:args.max_pos]
+        src_subtoken_idxs[-1] = sep_vid
+        _segs = [-1] + [i for i, t in enumerate(src_subtoken_idxs) if t == sep_vid] # position of [SEP] token in the source document
+        segs = [_segs[i] - _segs[i - 1] for i in range(1, len(_segs))]
+        segments_ids = []
+        segs = segs[:args.max_pos]
+        for i, s in enumerate(segs):
+            if (i % 2 == 0):
+                segments_ids += s * [0]
+            else:
+                segments_ids += s * [1]
+
+        src = torch.tensor(src_subtoken_idxs)[None, :].to(device)
+        mask_src = (1 - (src == 0).float()).to(device)
+        cls_ids = [[i for i, t in enumerate(src_subtoken_idxs) if t == cls_vid]] #position of [CLS] token in the source document
+        clss = torch.tensor(cls_ids).to(device)
+        mask_cls = 1 - (clss == -1).float()
+        clss[clss == -1] = 0
+
+        return src, mask_src, segments_ids, clss, mask_cls
+
+    if(target_fp==''):
+        with open(source_fp) as source:
+            for x in tqdm(source, total=n_lines):
+                src, mask_src, segments_ids, clss, mask_cls = _process_src(x)
+                segs = torch.tensor(segments_ids)[None, :].to(device)
+                batch = Batch()
+                batch.src  = src
+                batch.tgt  = None
+                batch.mask_src  = mask_src
+                batch.mask_tgt  = None
+                batch.segs  = segs
+                batch.src_str  =  [[sent.replace('[SEP]','').strip() for sent in x.split('[CLS]')]]
+                batch.tgt_str  = ['']
+                batch.clss  = clss
+                batch.mask_cls  = mask_cls
+
+                batch.batch_size=1
+                yield batch
+    else:
+        with open(source_fp) as source, open(target_fp) as target:
+            for x, y in tqdm(zip(source, target), total=n_lines):
+                x = x.strip()
+                y = y.strip()
+                y = ' '.join(y.split())
+                src, mask_src, segments_ids, clss, mask_cls = _process_src(x)  # processing the source
+                segs = torch.tensor(segments_ids)[None, :].to(device)
+                batch = Batch()
+                batch.src  = src
+                batch.tgt  = None
+                batch.mask_src  = mask_src
+                batch.mask_tgt  = None
+                batch.segs  = segs
+                batch.src_str  =  [[sent.replace('[SEP]','').strip() for sent in x.split('[CLS]')]]
+                batch.tgt_str  = [y]
+                batch.clss  = clss
+                batch.mask_cls  = mask_cls
+                batch.batch_size=1
+                yield batch

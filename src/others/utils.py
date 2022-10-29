@@ -3,7 +3,8 @@ import re
 import shutil
 import time
 
-from others import pyrouge
+# from others import pyrouge
+from pyrouge import Rouge155
 
 REMAP = {"-lrb-": "(", "-rrb-": ")", "-lcb-": "{", "-rcb-": "}",
          "-lsb-": "[", "-rsb-": "]", "``": '"', "''": '"'}
@@ -36,7 +37,7 @@ def process(params):
             with open(tmp_dir + "/reference/ref.{}.txt".format(i), "w",
                       encoding="utf-8") as f:
                 f.write(references[i])
-        r = pyrouge.Rouge155(temp_dir=temp_dir)
+        r = Rouge155()
         r.model_dir = tmp_dir + "/reference/"
         r.system_dir = tmp_dir + "/candidate/"
         r.model_filename_pattern = 'ref.#ID#.txt'
@@ -54,8 +55,8 @@ def process(params):
 def test_rouge(temp_dir, cand, ref):
     candidates = [line.strip() for line in open(cand, encoding='utf-8')]
     references = [line.strip() for line in open(ref, encoding='utf-8')]
-    print(len(candidates))
-    print(len(references))
+    print('length of the candidates',len(candidates))
+    print('length of the references',len(references))
     assert len(candidates) == len(references)
 
     cnt = len(candidates)
@@ -76,7 +77,7 @@ def test_rouge(temp_dir, cand, ref):
             with open(tmp_dir + "/reference/ref.{}.txt".format(i), "w",
                       encoding="utf-8") as f:
                 f.write(references[i])
-        r = pyrouge.Rouge155(temp_dir=temp_dir)
+        r = Rouge155()
         r.model_dir = tmp_dir + "/reference/"
         r.system_dir = tmp_dir + "/candidate/"
         r.model_filename_pattern = 'ref.#ID#.txt'
@@ -84,6 +85,7 @@ def test_rouge(temp_dir, cand, ref):
         rouge_results = r.convert_and_evaluate()
         print(rouge_results)
         results_dict = r.output_to_dict(rouge_results)
+        print(results_dict)
     finally:
         pass
         if os.path.isdir(tmp_dir):

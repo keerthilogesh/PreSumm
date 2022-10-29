@@ -22,7 +22,7 @@ from others.logging import logger, init_logger
 
 model_flags = ['hidden_size', 'ff_size', 'heads', 'inter_layers', 'encoder', 'ff_actv', 'use_interval', 'rnn_size']
 
-
+# For Multiple GPU'S
 def train_multi_ext(args):
     """ Spawns 1 process per GPU """
     init_logger()
@@ -32,7 +32,7 @@ def train_multi_ext(args):
 
     # Create a thread to listen for errors in the child processes.
     error_queue = mp.SimpleQueue()
-    error_handler = ErrorHandler(error_queue)
+    # error_handler = ErrorHandler(error_queue)
 
     # Train with multiprocessing.
     procs = []
@@ -42,7 +42,7 @@ def train_multi_ext(args):
                                                   device_id, error_queue,), daemon=True))
         procs[i].start()
         logger.info(" Starting process pid: %d  " % procs[i].pid)
-        error_handler.add_child(procs[i].pid)
+        # error_handler.add_child(procs[i].pid)
     for p in procs:
         p.join()
 
@@ -80,7 +80,7 @@ class ErrorHandler(object):
         self.error_thread = threading.Thread(
             target=self.error_listener, daemon=True)
         self.error_thread.start()
-        signal.signal(signal.SIGUSR1, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
 
     def add_child(self, pid):
         """ error handler """
@@ -90,7 +90,7 @@ class ErrorHandler(object):
         """ error listener """
         (rank, original_trace) = self.error_queue.get()
         self.error_queue.put((rank, original_trace))
-        os.kill(os.getpid(), signal.SIGUSR1)
+        os.kill(os.getpid(), signal.SIGTERM)
 
     def signal_handler(self, signalnum, stackframe):
         """ signal handler """
@@ -196,13 +196,14 @@ def test_ext(args, device_id, pt, step):
     trainer = build_trainer(args, device_id, model, None)
     trainer.test(test_iter, step)
 
+#TRAIN Extractive
 def train_ext(args, device_id):
-    if (args.world_size > 1):
+    if (args.world_size > 1):  # if GPU is more than 1 , then use function 'train_multi_ext(args)'
         train_multi_ext(args)
     else:
-        train_single_ext(args, device_id)
+        train_single_ext(args, device_id)  # For single GPU
 
-
+# Train extractive - Single GPU
 def train_single_ext(args, device_id):
     init_logger(args.log_file)
 
@@ -231,15 +232,35 @@ def train_single_ext(args, device_id):
                 setattr(args, k, opt[k])
     else:
         checkpoint = None
-
+# Dataloader using load_dataset function - refer - dataloader.py
     def train_iter_fct():
         return data_loader.Dataloader(args, load_dataset(args, 'train', shuffle=True), args.batch_size, device,
                                       shuffle=True, is_test=False)
-
-    model = ExtSummarizer(args, device, checkpoint)
-    optim = model_builder.build_optim(args, model, checkpoint)
+#Extractive Summarizer - Read ' Model_builder.py'
+    model = ExtSummarizer(args, device, checkpoint)   # returns the sentence scores and mask_cls  - refer 'model_builder.py'
+    optim = model_builder.build_optim(args, model, checkpoint)  # build optimizer - refer 'model_builder.py'
 
     logger.info(model)
 
-    trainer = build_trainer(args, device_id, model, optim)
-    trainer.train(train_iter_fct, args.train_steps)
+    trainer = build_trainer(args, device_id, model, optim)  # Build Trainer - tensorboard logs,report manager, summary writer -refer 'trainer_ext.py'
+    trainer.train(train_iter_fct, args.train_steps)       #Main Training for extractive summarization - refer 'trainer_ext.py'
+
+
+def test_text_ext(args):
+    logger.info('Loading checkpoint from %s' % args.test_from)
+    checkpoint = torch.load(args.test_from, map_location=lambda storage, loc: storage)
+    opt = vars(checkpoint['opt'])
+    for k in opt.keys():
+        if (k in model_flags):
+            setattr(args, k, opt[k])
+    print(args)
+    device = "cpu" if args.visible_gpus == '-1' else "cuda"
+    device_id = 0 if device == "cuda" else -1
+
+    model = ExtSummarizer(args, device, checkpoint)
+    model.eval()
+
+    test_iter = data_loader.load_text(args, args.text_src, args.text_tgt, device)
+
+    trainer = build_trainer(args, device_id, model, None)
+    trainer.test(test_iter, -1)

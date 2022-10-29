@@ -3,7 +3,7 @@ import os
 import numpy as np
 import torch
 from tensorboardX import SummaryWriter
-
+import io
 import distributed
 from models.reporter_ext import ReportMgr, Statistics
 from others.logging import logger
@@ -125,13 +125,13 @@ class Trainer(object):
         true_batchs = []
         accum = 0
         normalization = 0
-        train_iter = train_iter_fct()
+        train_iter = train_iter_fct()  #train_iter_fct - is the training dataset
 
         total_stats = Statistics()
         report_stats = Statistics()
         self._start_report_manager(start_time=total_stats.start_time)
 
-        while step <= train_steps:
+        while step <= train_steps: # train_steps:1000
 
             reduce_counter = 0
             for i, batch in enumerate(train_iter):
@@ -227,8 +227,8 @@ class Trainer(object):
 
         can_path = '%s_step%d.candidate' % (self.args.result_path, step)
         gold_path = '%s_step%d.gold' % (self.args.result_path, step)
-        with open(can_path, 'w') as save_pred:
-            with open(gold_path, 'w') as save_gold:
+        with open(can_path, 'w', encoding="utf-8") as save_pred:
+            with open(gold_path, 'w', encoding="utf-8") as save_gold:
                 with torch.no_grad():
                     for batch in test_iter:
                         src = batch.src

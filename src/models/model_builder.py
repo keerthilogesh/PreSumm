@@ -9,11 +9,13 @@ from models.decoder import TransformerDecoder
 from models.encoder import Classifier, ExtTransformerEncoder
 from models.optimizers import Optimizer
 
+# Optimizer
 def build_optim(args, model, checkpoint):
     """ Build optimizer """
 
     if checkpoint is not None:
-        optim = checkpoint['optim'][0]
+        #optim = checkpoint['optim'][0]
+        optim = checkpoint['optim'] #Extractive optim setting
         saved_optimizer_state_dict = optim.optimizer.state_dict()
         optim.optimizer.load_state_dict(saved_optimizer_state_dict)
         if args.visible_gpus != '-1':
@@ -113,31 +115,44 @@ def get_generator(vocab_size, dec_hidden_size, device):
     return generator
 
 class Bert(nn.Module):
-    def __init__(self, large, temp_dir, finetune=False):
+    def __init__(self, model, temp_dir, finetune=False):
         super(Bert, self).__init__()
-        if(large):
+        self.modelname = model
+        if model == "large":
+            print("Loading base bert")
             self.model = BertModel.from_pretrained('bert-large-uncased', cache_dir=temp_dir)
-        else:
+        elif model == "base":
+            print("Loading base bert")
             self.model = BertModel.from_pretrained('bert-base-uncased', cache_dir=temp_dir)
+        elif model == "histbert":
+            print("Loading hist bert")
+            self.model = BertModel.from_pretrained("C:/Users/keert/PycharmProjects/PreSumm/data/HistBert/pytorch_bert", output_hidden_states=True)
 
         self.finetune = finetune
 
     def forward(self, x, segs, mask):
         if(self.finetune):
-            top_vec, _ = self.model(x, segs, attention_mask=mask)
+            if self.modelname != "histbert":
+                top_vec, _ = self.model(x, segs, attention_mask=mask)
+            else:
+                top_vec = self.model(x, segs, attention_mask=mask)[0]
         else:
             self.eval()
-            with torch.no_grad():
-                top_vec, _ = self.model(x, segs, attention_mask=mask)
+            if self.modelname != "histbert":
+                with torch.no_grad():
+                    top_vec, _ = self.model(x, segs, attention_mask=mask)
+            else:
+                with torch.no_grad():
+                    top_vec = self.model(x, segs, attention_mask=mask)[0]
         return top_vec
 
-
+# For fine tuning, we need intersentence transfirnmer and the sigmoid classfier. these two function are in 'emcoder.py- classifier and ExtTransformerEncoder'
 class ExtSummarizer(nn.Module):
     def __init__(self, args, device, checkpoint):
         super(ExtSummarizer, self).__init__()
         self.args = args
         self.device = device
-        self.bert = Bert(args.large, args.temp_dir, args.finetune_bert)
+        self.bert = Bert(args.model, args.temp_dir, args.finetune_bert)
 
         self.ext_layer = ExtTransformerEncoder(self.bert.model.config.hidden_size, args.ext_ff_size, args.ext_heads,
                                                args.ext_dropout, args.ext_layers)
@@ -173,6 +188,7 @@ class ExtSummarizer(nn.Module):
         sents_vec = sents_vec * mask_cls[:, :, None].float()
         sent_scores = self.ext_layer(sents_vec, mask_cls).squeeze(-1)
         return sent_scores, mask_cls
+
 
 
 class AbsSummarizer(nn.Module):

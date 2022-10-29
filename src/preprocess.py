@@ -70,4 +70,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     init_logger(args.log_file)
+    # data_builder.tokenize(args) # tokenize
+    #data_builder.format_to_lines(args)
+    #data_builder.format_to_bert(args)
+    print('data_builder.'+args.mode + '(args)')
     eval('data_builder.'+args.mode + '(args)')
