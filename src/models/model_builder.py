@@ -126,7 +126,7 @@ class Bert(nn.Module):
             self.model = BertModel.from_pretrained('bert-base-uncased', cache_dir=temp_dir)
         elif model == "histbert":
             print("Loading hist bert")
-            self.model = BertModel.from_pretrained("C:/Users/keert/PycharmProjects/PreSumm/data/HistBert/pytorch_bert", output_hidden_states=True)
+            self.model = BertModel.from_pretrained("../data/HistBert/pytorch_bert", output_hidden_states=True)
 
         self.finetune = finetune
 
