@@ -45,7 +45,7 @@ def train_abs_multi(args):
 
     # Create a thread to listen for errors in the child processes.
     error_queue = mp.SimpleQueue()
-    error_handler = ErrorHandler(error_queue)
+    # error_handler = ErrorHandler(error_queue)
 
     # Train with multiprocessing.
     procs = []
@@ -55,14 +55,13 @@ def train_abs_multi(args):
                                                   device_id, error_queue,), daemon=True))
         procs[i].start()
         logger.info(" Starting process pid: %d  " % procs[i].pid)
-        error_handler.add_child(procs[i].pid)
+        # error_handler.add_child(procs[i].pid)
     for p in procs:
         p.join()
 
 
 def run(args, device_id, error_queue):
     """ run process """
-
     setattr(args, 'gpu_ranks', [int(i) for i in args.gpu_ranks])
 
     try:
@@ -94,7 +93,7 @@ class ErrorHandler(object):
         self.error_thread = threading.Thread(
             target=self.error_listener, daemon=True)
         self.error_thread.start()
-        signal.signal(signal.SIGUSR1, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
 
     def add_child(self, pid):
         """ error handler """
@@ -104,7 +103,7 @@ class ErrorHandler(object):
         """ error listener """
         (rank, original_trace) = self.error_queue.get()
         self.error_queue.put((rank, original_trace))
-        os.kill(os.getpid(), signal.SIGUSR1)
+        os.kill(os.getpid(), signal.SIGTERM)
 
     def signal_handler(self, signalnum, stackframe):
         """ signal handler """

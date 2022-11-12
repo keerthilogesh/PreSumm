@@ -9,24 +9,24 @@
 #SBATCH -o gpu_hist_bert.out
 
 # retrain from historical data (histbert)
-#bert_data_path='../data/historical_samples/bert_data/bert.pt_data/'
-#model_data_path='../data/historical_samples/basic_model_path/'
-#log_file_path='../logs/train_historical_data_from_pretrained.log'
-#train_from_path='../data/baseline_model/bertext_cnndm_transformer.pt'
-#train_steps=50000
+bert_data_path='../data/historical_samples/bert_data/bert.pt_data/'
+model_data_path='../data/historical_samples/extractive/basic_model_path/'
+log_file_path='../logs/train_historical_data_from_pretrained.log'
+train_from_path='../data/baseline_model/bertext_cnndm_transformer.pt'
+train_steps=50000
 
 # 2: retrain from cnn data (histbert)
-#bert_data_path='../data/cnn/bert_data/cnndm/cnndm.'
-#model_data_path='../data/cnn/model_path/'
-#log_file_path='../logs/train_cnn_data_from_pretrained.log'
-#train_from_path='../data/baseline_model/bertext_cnndm_transformer.pt'
-#train_steps=50000
+bert_data_path='../data/cnn/bert_data/cnndm/cnndm.'
+model_data_path='../data/cnn/model_path/extractive/'
+log_file_path='../logs/bertext_train_cnn_data_from_pretrained.log'
+train_from_path='../data/baseline_model/bertext_cnndm_transformer.pt'
+train_steps=50000
 
 # 3: retrain from historical data - initialize with 2
 bert_data_path='../data/historical_samples/bert_data/bert.pt_data/'
-model_data_path='../data/historical_samples/pre_model_path/'
-log_file_path='../logs/train_historical_data_from_pretrained_hist.log'
-train_from_path='../data/cnn/model_path/model_step_50000.pt'
+model_data_path='../data/historical_samples/extractive/pre_model_path/'
+log_file_path='../logs/bertext_train_historical_data_from_pretrained_hist.log'
+train_from_path='../data/cnn/model_path/extractive/model_step_50000.pt'
 train_steps=70000
 
 cd /home/users/kmurugaraj/masterthesis/PreSumm/src
