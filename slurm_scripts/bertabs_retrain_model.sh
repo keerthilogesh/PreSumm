@@ -22,6 +22,7 @@
 # train_from_path='../data/baseline_model/bertextabs_cnndm_final_148000.pt'
 # train_steps=200000
 
+
 # 3: retrain from historical data - initialize with 2
 # bert_data_path='../data/historical_samples/bert_data/bert.pt_data/'
 # model_data_path='../data/historical_samples/abstractive/pre_model_path/'
@@ -30,11 +31,18 @@
 # train_steps=250000
 
 # 4: baseline retrain - retrain from historical data - histbert
+# bert_data_path='../data/historical_samples/bert_data/bert.pt_data/'
+# model_data_path='../data/historical_samples/model_path/abstractive/retrain_model_path/'
+# log_file_path='../logs/abstractive_retrain_model_path.log'
+# train_from_path='../data/cnn/model_path/abstractive_baseline/model_step_200000.pt'
+# train_steps=250000
+
+# 5. xsum model - retrain from historical data (histbert)
 bert_data_path='../data/historical_samples/bert_data/bert.pt_data/'
-model_data_path='../data/historical_samples/model_path/abstractive/retrain_model_path/'
-log_file_path='../logs/abstractive_retrain_model_path.log'
-train_from_path='../data/cnn/model_path/abstractive_baseline/model_step_200000.pt'
-train_steps=250000
+model_data_path='../data/historical_samples/abstractive/basic_model_path/'
+log_file_path='../logs/bertabs_xsum_train_historical_data_from_pretrained.log'
+train_from_path='../data/baseline_model/bertextabs_xsum_final_30000.pt'
+train_steps=50000
 
 cd /home/users/kmurugaraj/masterthesis/PreSumm/src
 conda activate histsumm_gpu
