@@ -6,7 +6,7 @@
 #SBATCH -G 4
 #SBATCH --time=12:00:00
 #SBATCH -p gpu
-#SBATCH -o gpu_hist_bert_abs3.out
+#SBATCH -o baseline_bert_abs.out
 
 
 # 2: retrain from cnn data (histbert)

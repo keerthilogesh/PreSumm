@@ -6,7 +6,7 @@
 #SBATCH -G 4
 #SBATCH --time=10:00:00
 #SBATCH -p gpu
-#SBATCH -o gpu_hist_bert.out
+#SBATCH -o baseline_bert_ext.out
 
 # 2: retrain from cnn data (histbert)
 bert_data_path='../data/cnn/bert_data/cnndm/cnndm.'
