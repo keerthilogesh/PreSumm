@@ -15,7 +15,7 @@ def do_format_to_lines(args):
 
 def do_format_to_bert(args):
     print(time.clock())
-    data_builder.format_to_bert(args)
+    data_builder.format_to_bert(args) # BERT EMBEDDINGS ARE CHANGED TO BERTSUM
     print(time.clock())
 
 
