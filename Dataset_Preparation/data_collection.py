@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 data_dir = "C:/Users/keert/PycharmProjects/PreSumm/Dataset_Preparation/Downloads_PDF/"
 all_files = [os.path.join(data_dir, file) for file in os.listdir(data_dir) if ".pdf" in file]
 
+##
 all_data = []
 for pdfFile in all_files:
     try:
@@ -16,8 +17,8 @@ for pdfFile in all_files:
         # pdfFile = "C:/Users/keert/PycharmProjects/PreSumm/Dataset_Preparation/Verified_PDF_File/0a72ade2-c5b0-4946-80a6-5f61fd357820.pdf"
         # pdfFile = "C:/Users/keert/PycharmProjects/PreSumm/Dataset_Preparation/Verified_PDF_File/16e4ca6c-0ed7-47dc-9def-8447c1e7d655.pdf"
         # pdfFile = "C:/Users/keert/PycharmProjects/PreSumm/Dataset_Preparation/Downloads_PDF/14a0b2c8-8c4e-4acf-b4c3-742e0a2e1bb6.pdf"
-        # pdfFile = "C:/Users/keert/PycharmProjects/PreSumm/Dataset_Preparation/Downloads_PDF/d4904999-b567-42f8-bd25-5f9411c0097b.pdf"
-        # print(f"processing file: {pdfFile}")
+        # pdfFile = "C:/Users/keert/PycharmProjects/PreSumm/Dataset_Preparation/Downloads_PDF/094622d1-d25f-4bbe-ae7a-7520e8c41155.pdf"
+        print(f"processing file: {pdfFile}")
         pdfRead = PyPDF2.PdfFileReader(pdfFile) # read PDF file
         index_page_content = BeautifulSoup(pdfRead.pages[0].extractText(), 'html.parser').getText()  # Extracting the Page 1
         docid = os.path.basename(pdfFile).split(".pdf")[0]   # It returns the tail of the path i.e DOI
@@ -28,7 +29,10 @@ for pdfFile in all_files:
             else:
                 title = index_page_content.split("Caption")[0].replace("\n", " ").strip()
             title_inside = list(pdfRead.pages)[1:][0].extractText()[6:].split("\n")[:1]  # to extract the title from the second page
-            caption = index_page_content.split("Caption:")[1].split("Source")[0].replace("\n", " ").strip()  # Extracting only the caption from the page 1
+            if "Source:" in index_page_content:
+                caption = index_page_content.split("Caption:")[1].split("Source")[0].replace("\n", " ").strip()  # Extracting only the caption from the page 1
+            else:
+                caption = index_page_content.split("Caption:")[1].split("Copyright")[0].replace("\n", " ").strip()  # Extracting only the caption from the page 1
             content = ""
             for page in list(pdfRead.pages)[1:]:
                 content = content + "\n" + "\n".join(page.extractText().split("\n")[1:]).strip()  # Extracting the content

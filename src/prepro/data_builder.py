@@ -325,7 +325,7 @@ def _format_to_bert(params):
     for d in jobs:
         source, tgt = d['src'], d['tgt']
         #print('tgt',tgt)
-        sent_labels = greedy_selection(source[:args.max_src_nsents], tgt, 3) # ground truth label generation using greedu selection
+        sent_labels = greedy_selection(source[:args.max_src_nsents], tgt, 15) # ground truth label generation using greedu selection
         if (args.lower):
             source = [' '.join(s).lower().split() for s in source]
             tgt = [' '.join(s).lower().split() for s in tgt]

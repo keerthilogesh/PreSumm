@@ -7,8 +7,8 @@ import hashlib
 
 ip_data = pandas.read_excel(
     r"C:\Users\keert\PycharmProjects\PreSumm\Dataset_Preparation\cleaned_data\tokenized_data3.xlsx", engine="openpyxl")
-op_data_dir = "C:/Users/keert/PycharmProjects/PreSumm/data/historical_samples/raw_stories/"
-uri_data_dir = "C:/Users/keert/PycharmProjects/PreSumm/data/historical_samples/urls/"
+op_data_dir = "C:/Users/keert/PycharmProjects/PreSumm/data/historical_samples_new/raw_stories/"
+uri_data_dir = "C:/Users/keert/PycharmProjects/PreSumm/data/historical_samples_new/urls/"
 
 ##
 
@@ -50,9 +50,9 @@ import random
 random.seed(000000)
 docids = ip_data["docid"].tolist()
 random.shuffle(docids)
-docids_test = docids[:int(len(docids) * 0.05)]
-docids_valid = docids[int(len(docids) * 0.05):2 * int(len(docids) * 0.05)]
-docids_train = docids[2 * int(len(docids) * 0.05):]
+docids_test = docids[:int(len(docids) * 0.10)]
+docids_valid = docids[int(len(docids) * 0.10): int(len(docids) * 0.15)]
+docids_train = docids[int(len(docids) * 0.15):]
 
 os.makedirs(uri_data_dir, exist_ok=True)
 with open(os.path.join(uri_data_dir, "mapping_train.txt"), "w", encoding="utf-8") as f:
@@ -66,4 +66,4 @@ with open(os.path.join(uri_data_dir, "mapping_valid.txt"), "w", encoding="utf-8"
     f.close()
 
 ##
-ip_data[["docid", "fn"]].to_csv(r"C:\Users\keert\PycharmProjects\PreSumm\data\hist_samples_map.csv", index=False)
+# ip_data[["docid", "fn"]].to_csv(r"C:\Users\keert\PycharmProjects\PreSumm\data\hist_samples_map.csv", index=False)

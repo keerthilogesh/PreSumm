@@ -271,8 +271,8 @@ class Trainer(object):
                                         _pred.append(candidate)
                                 else:
                                     _pred.append(candidate)
-
-                                if ((not cal_oracle) and (not self.args.recall_eval) and len(_pred) == 3):
+                                if ((not cal_oracle) and (not self.args.recall_eval) and len(_pred) == 15):
+                                    print(f"{len(_pred)} - breaking")
                                     break
 
                             _pred = '<q>'.join(_pred)
@@ -311,7 +311,12 @@ class Trainer(object):
 
             sent_scores, mask = self.model(src, segs, clss, mask, mask_cls)
 
-            loss = self.loss(sent_scores, labels.float())
+            if labels.shape == sent_scores.shape:
+                loss = self.loss(sent_scores, labels.float())
+            else:
+                print(f"Reshaping: sent scores: {sent_scores.shape}, labels: {labels.shape}")
+                labels = labels.reshape(sent_scores.shape)
+                loss = self.loss(sent_scores, labels.float())
             loss = (loss * mask.float()).sum()
             (loss / loss.numel()).backward()
             # loss.div(float(normalization)).backward()

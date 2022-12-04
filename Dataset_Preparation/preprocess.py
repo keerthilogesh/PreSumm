@@ -184,7 +184,7 @@ def preprocess_word(s):
     #w_list = f_punct(w_list)
     w_list = fun_punct(w_list)
     # w_list = f_noun(w_list)
-    #w_list = f_typo(w_list)
+    w_list = f_typo(w_list)
     # w_list = f_stem(w_list)
     #w_list = f_lemmatize(w_list)
     # w_list = f_stopw(w_list)
