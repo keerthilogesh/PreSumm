@@ -180,6 +180,16 @@ class ExtSummarizer(nn.Module):
                     if p.dim() > 1:
                         xavier_uniform_(p)
 
+        # self.bert.model.embeddings.word_embeddings.weight = torch.nn.parameter.Parameter(
+        #     self.bert.model.embeddings.word_embeddings.weight * 0.0)
+        # print("Removing word embeddings")
+        # self.bert.model.embeddings.position_embeddings.weight = torch.nn.parameter.Parameter(
+        #     self.bert.model.embeddings.position_embeddings.weight * 0.0)
+        # print("Removing position embeddings")
+        # self.bert.model.embeddings.token_type_embeddings.weight = torch.nn.parameter.Parameter(
+        #     self.bert.model.embeddings.token_type_embeddings.weight * 0)
+        # print("Removing token type embeddings")
+
         self.to(device)
 
     def forward(self, src, segs, clss, mask_src, mask_cls):
@@ -250,6 +260,12 @@ class AbsSummarizer(nn.Module):
                 tgt_embeddings.weight = copy.deepcopy(self.bert.model.embeddings.word_embeddings.weight)
                 self.decoder.embeddings = tgt_embeddings
                 self.generator[0].weight = self.decoder.embeddings.weight
+
+        # self.bert.model.embeddings.position_embeddings.weight = torch.nn.parameter.Parameter(
+        #     self.bert.model.embeddings.position_embeddings.weight * 0)
+        # print("Removing position embeddings")
+        # self.bert.model.embeddings.token_type_embeddings.weight = torch.nn.parameter.Parameter(self.bert.model.embeddings.token_type_embeddings.weight * 0)
+        # print("Removing token type embeddings")
 
         self.to(device)
 
