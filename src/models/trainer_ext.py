@@ -242,14 +242,21 @@ class Trainer(object):
                         pred = []
 
                         if (cal_lead):
+                            print("Using lead model")
                             selected_ids = [list(range(batch.clss.size(1)))] * batch.batch_size
                         elif (cal_oracle):
+                            print("Using oracle model")
                             selected_ids = [[j for j in range(batch.clss.size(1)) if labels[i][j] == 1] for i in
                                             range(batch.batch_size)]
                         else:
                             sent_scores, mask = self.model(src, segs, clss, mask, mask_cls)
 
-                            loss = self.loss(sent_scores, labels.float())
+                            if labels.shape == sent_scores.shape:
+                                loss = self.loss(sent_scores, labels.float())
+                            else:
+                                print(f"Reshaping: sent scores: {sent_scores.shape}, labels: {labels.shape}")
+                                labels = labels.reshape(sent_scores.shape)
+                                loss = self.loss(sent_scores, labels.float())
                             loss = (loss * mask.float()).sum()
                             batch_stats = Statistics(float(loss.cpu().data.numpy()), len(labels))
                             stats.update(batch_stats)
@@ -271,8 +278,7 @@ class Trainer(object):
                                         _pred.append(candidate)
                                 else:
                                     _pred.append(candidate)
-                                if ((not cal_oracle) and (not self.args.recall_eval) and len(_pred) == 15):
-                                    print(f"{len(_pred)} - breaking")
+                                if ((not cal_oracle) and (not self.args.recall_eval) and len(_pred) == 2): ## len of predicted sentences is set to 2
                                     break
 
                             _pred = '<q>'.join(_pred)
@@ -286,6 +292,8 @@ class Trainer(object):
                             save_gold.write(gold[i].strip() + '\n')
                         for i in range(len(pred)):
                             save_pred.write(pred[i].strip() + '\n')
+        print(f"Candidate path: {can_path}")
+        print(f"Gold path: {gold_path}")
         if (step != -1 and self.args.report_rouge):
             rouges = test_rouge(self.args.temp_dir, can_path, gold_path)
             logger.info('Rouges at step %d \n%s' % (step, rouge_results_to_str(rouges)))

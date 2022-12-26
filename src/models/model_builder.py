@@ -156,7 +156,7 @@ class ExtSummarizer(nn.Module):
 
         self.ext_layer = ExtTransformerEncoder(self.bert.model.config.hidden_size, args.ext_ff_size, args.ext_heads,
                                                args.ext_dropout, args.ext_layers)
-        if (args.encoder == 'baseline'):
+        if (args.encoder == 'baseline'):  # normal BERT can process only 512 words
             bert_config = BertConfig(self.bert.model.config.vocab_size, hidden_size=args.ext_hidden_size,
                                      num_hidden_layers=args.ext_layers, num_attention_heads=args.ext_heads, intermediate_size=args.ext_ff_size)
             self.bert.model = BertModel(bert_config)

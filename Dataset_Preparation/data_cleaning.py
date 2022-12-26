@@ -14,7 +14,9 @@ ip_data["location"] = ip_data["location_date"].apply(lambda x: x.split(",")[0] i
 ##
 ip_data["content"] = ip_data["content"].apply(lambda x: str(x).replace("\n", " ").replace(". ", ".\n"))
 ip_data["caption"] = ip_data["caption"].apply(lambda x: str(x).replace("\n", " ").replace(". ", ".\n"))
-ip_data["content_length"] = ip_data["content"].apply(lambda x: len([xx for xx in x.split(".\n") if len(xx) > 50]))
+ip_data["content_length"] = ip_data["content"].apply(lambda x: len([xx for xx in x.split(".\n") if len(xx) > 50]))  # number of sentences with num of characters > 50
+ip_data["word_length"] = ip_data["content"].apply(lambda x: [len(xx.split(" ")) for xx in x.split(".\n") if len(xx) > 50])  # number of sentences with num of characters > 50
+ip_data["word_length_sum"] = ip_data["word_length"].apply(lambda x: sum(x))
 import hashlib
 def hashhex(s):
     """Returns a heximal formated SHA1 hash of the input string."""
@@ -31,7 +33,9 @@ ip_data_n = ip_data_n[ip_data_n["caption"].str.len() > 10]
 ip_data_n = ip_data_n[ip_data_n["content"].str.len() > 100]
 ip_data_n = ip_data_n[(ip_data_n["content_length"] >= 15) & (ip_data_n["content_length"] <= 150)]
 ip_data_n = ip_data_n.reset_index(drop=True)
-ip_data_n = ip_data_n[ip_data_n["n_pages"] < 25]
+ip_data_n = ip_data_n[ip_data_n["n_pages"] < 10]
+ip_data_n["content"] = ip_data_n["content"].apply(lambda contents: ".\n".join(
+    [re.sub('\s+', ' ', line) for line in contents.strip().replace("  ", " ").split(".\n") if len(re.sub('\s+', ' ', line).split(" ")) > 5]))
 
 ##
 # ip_data_n = ip_data_n[ip_data_n["n_pages"] < 5]
