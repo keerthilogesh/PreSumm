@@ -1,6 +1,8 @@
 import os
 
+import numpy
 import numpy as np
+import pandas
 import torch
 from tensorboardX import SummaryWriter
 import io
@@ -227,6 +229,7 @@ class Trainer(object):
 
         can_path = '%s_step%d.candidate' % (self.args.result_path, step)
         gold_path = '%s_step%d.gold' % (self.args.result_path, step)
+        selected_ids_all = []
         with open(can_path, 'w', encoding="utf-8") as save_pred:
             with open(gold_path, 'w', encoding="utf-8") as save_gold:
                 with torch.no_grad():
@@ -244,10 +247,12 @@ class Trainer(object):
                         if (cal_lead):
                             print("Using lead model")
                             selected_ids = [list(range(batch.clss.size(1)))] * batch.batch_size
+                            selected_ids = numpy.array(selected_ids)
                         elif (cal_oracle):
                             print("Using oracle model")
                             selected_ids = [[j for j in range(batch.clss.size(1)) if labels[i][j] == 1] for i in
                                             range(batch.batch_size)]
+                            selected_ids = numpy.array(selected_ids)
                         else:
                             sent_scores, mask = self.model(src, segs, clss, mask, mask_cls)
 
@@ -265,6 +270,8 @@ class Trainer(object):
                             sent_scores = sent_scores.cpu().data.numpy()
                             selected_ids = np.argsort(-sent_scores, 1)
                         # selected_ids = np.sort(selected_ids,1)
+                        print(f"Length of selected ids: {len(selected_ids.tolist()[0])}, Num of sentences in src text: {len(batch.src_str[0])}")
+                        selected_ids_all.append({"selected ids": selected_ids.tolist()[0], "Lead": cal_lead, "Oracle": cal_oracle})
                         for i, idx in enumerate(selected_ids):
                             _pred = []
                             if (len(batch.src_str[i]) == 0):
@@ -292,8 +299,14 @@ class Trainer(object):
                             save_gold.write(gold[i].strip() + '\n')
                         for i in range(len(pred)):
                             save_pred.write(pred[i].strip() + '\n')
+        selected_ids_path = os.path.join(os.path.dirname(gold_path), f"selected_ids_{cal_lead}_{cal_oracle}.pkl")
         print(f"Candidate path: {can_path}")
         print(f"Gold path: {gold_path}")
+        print(f"Selected ids path: {selected_ids_path}")
+        selected_ids_all = pandas.DataFrame(selected_ids_all)
+        selected_ids_all.reset_index(drop=False, inplace=True)
+        selected_ids_all.to_pickle(selected_ids_path)
+        print(f"Selected ids saved to file: {selected_ids_path}")
         if (step != -1 and self.args.report_rouge):
             rouges = test_rouge(self.args.temp_dir, can_path, gold_path)
             logger.info('Rouges at step %d \n%s' % (step, rouge_results_to_str(rouges)))
